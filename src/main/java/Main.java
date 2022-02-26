@@ -3,19 +3,18 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 
 public class Main {
+
     public static void main(String[] args) {
-        Server server = new Server(9999);
-        server.addHandler("GET", "/classic.html?last=10", (request, out) -> {
-            var i = request.getPath().indexOf("?");
-            var path = request.getPath().substring(0, i);
-            final var filePath = Path.of(".", "public", path);
+        Server server = new Server(64);
+
+        server.addHandler("GET", "/classic.html", ((request, out) -> {
+            final var filePath = Path.of(".", "public", request.getPath());
             final var mimeType = Files.probeContentType(filePath);
+
             final var template = Files.readString(filePath);
             final var content = template.replace(
                     "{time}",
-                    LocalDateTime.now().toString() +
-                            " parameter last = " + request.getQueryParam("last") +
-                            "list parameters = " + request.getQueryParams()
+                    LocalDateTime.now().toString()
             ).getBytes();
             out.write((
                     "HTTP/1.1 200 OK\r\n" +
@@ -26,7 +25,24 @@ public class Main {
             ).getBytes());
             out.write(content);
             out.flush();
-        });
-        server.listen();
+        }));
+
+        server.addHandler("GET", "/index.html", ((request, out) -> {
+            final var filePath = Path.of(".", "public", request.getPath());
+            final var mimeType = Files.probeContentType(filePath);
+            final var length =  Files.size(filePath);
+
+            out.write((
+                    "HTTP/1.1 200 OK\r\n" +
+                            "Content-Type: " + mimeType + "\r\n" +
+                            "Content-Length: " + length + "\r\n" +
+                            "Connection: close\r\n" +
+                            "\r\n"
+            ).getBytes());
+            Files.copy(filePath, out);
+            out.flush();
+        }));
+
+        server.listen(9999);
     }
 }
